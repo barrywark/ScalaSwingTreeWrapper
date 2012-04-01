@@ -3,8 +3,8 @@ package test
 
 import scala.xml._
 import Swing._
-import swing.event._
-import swing.tree._
+import scala.swing.event._
+import scala.swing.tree._
 import Tree._
 import java.awt.Color
 import java.awt.{event => jae}
