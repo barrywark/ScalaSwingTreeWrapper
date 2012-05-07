@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2012. Physion Consulting LLC
+ * All rights reserved.
+ */
+
 package scala.swing.test
 
 import org.scalatest._
@@ -17,55 +22,75 @@ class TreeSpec extends Spec with ShouldMatchers  {
     override def toString() = value.toString
   }
 
-  val dataTree = 
-    Node("Hobbies", 
-      Node("Skateboarding"), 
-      Node("Indoor", 
-        Node("Chess", 
-          Node("Chinese"), 
+  val dataTree =
+    Node("Hobbies",
+      Node("Skateboarding"),
+      Node("Indoor",
+        Node("Chess",
+          Node("Chinese"),
           Node("International")),
         Node("Draughts")),
       Node("Spelunking"))
-  
-  val (hobbies, skateboarding, indoor, chess, chinese, international, draughts, spelunking) = 
+
+  val (hobbies, skateboarding, indoor, chess, chinese, international, draughts, spelunking) =
     dataTree match {
-      case a @ Node("Hobbies", 
-        b @ Node("Skateboarding"), 
-        c @ Node("Indoor", 
-          d @ Node("Chess", 
-            e @ Node("Chinese"), 
+      case a @ Node("Hobbies",
+        b @ Node("Skateboarding"),
+        c @ Node("Indoor",
+          d @ Node("Chess",
+            e @ Node("Chinese"),
             f @ Node("International")),
           g @ Node("Draughts")),
         h @ Node("Spelunking")) => (a, b, c, d, e, f, g, h)
     }
-  
+
   def createTreeView() = new Tree[Node[String]] {
     model = ExternalTreeModel(dataTree)(_.children) makeUpdatableWith {(path, newValue) => path.last.value = newValue.value; newValue}
     selection.mode = Tree.SelectionMode.Contiguous
     editor = Tree.Editor(_.value, (str: String) => Node(str))
   }
-               
+
 
   describe("Model") {
     it("should contain appropriate data") {
       val model = TreeModel(dataTree)(_.children)
       model should have size (8)
     }
-  
+
 
     it("should traverse breadth first correctly") {
       val tree = createTreeView()
       tree.model.breadthFirstIterator.map(_.value).toList should equal (
           List("Hobbies", "Skateboarding", "Indoor", "Spelunking", "Chess", "Draughts", "Chinese", "International"))
     }
-    
+
     it("should traverse depth first correctly") {
       val tree = createTreeView()
       tree.model.depthFirstIterator.map(_.value).toList should equal (
           List("Hobbies", "Skateboarding", "Indoor", "Chess", "Chinese", "International", "Draughts", "Spelunking"))
     }
+
+      it("should publish node will expand events") {
+          val tree = createTreeView()
+          val events = new Publisher {
+              var detected = false
+              listenTo(tree.selection)
+              reactions += {
+                  case TreeWillExpand(evtTree, path) => {
+                      if(evtTree == tree && path.last == skateboarding) {
+                          detected = true
+                      }
+                  }
+              }
+          }
+
+          tree.peer.expandRow(0)
+          tree.peer.expandRow(1)
+
+          events.detected should equal true
+      }
   }
-  
+
   describe("Row selection") {
     it("should reflect the rows selected") {
       val tree = createTreeView()
@@ -74,19 +99,19 @@ class TreeSpec extends Spec with ShouldMatchers  {
       tree.selection.rows should equal (Set(1,2,3))
     }
   }
-  
+
   describe("Path selection") {
     it("should reflect the paths selected") {
       val tree = createTreeView()
       tree.selection.mode = Tree.SelectionMode.Discontiguous
-      
+
       val path1 = Tree.Path(hobbies, indoor, chess, chinese)
       val path2 = Tree.Path(hobbies, indoor, chess, international)
       tree.selectPaths(path1, path2)
       tree.selection.paths.toSet should equal (Set(path1, path2))
     }
   }
-  
+
   describe("Tree Path") {
     it("should contain the correct elements") {
       val tree = createTreeView()
@@ -94,16 +119,16 @@ class TreeSpec extends Spec with ShouldMatchers  {
       tree.selection.paths.toSet should equal (List(Tree.Path(hobbies)).toSet)
     }
   }
-  
+
   describe("Default Renderer") {
     it("Should provide an expected result") {
       val tree = createTreeView()
       tree.renderer = Tree.Renderer("$" + _.value)
-      
+
       tree.model should have size (8)
     }
   }
-  
+
   describe("Editor") {
     it("should start editing when asked") {
       val tree = createTreeView()
@@ -115,10 +140,10 @@ class TreeSpec extends Spec with ShouldMatchers  {
       val tree = createTreeView()
       tree.startEditingAtPath(hobbies :: indoor :: chess :: Nil)
       tree.editor.isEditing should be (true)
-      
+
       tree.editor.peer.asInstanceOf[javax.swing.tree.DefaultTreeCellEditor].
     }
-    
+
     it("should leave tree model unchanged when cancelled") {
       val tree = createTreeView()
       tree.startEditingAtPath(hobbies :: indoor :: chess :: Nil)
